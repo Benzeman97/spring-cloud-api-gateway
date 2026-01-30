@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+         # Booking Service V1 Routes (40% traffic)
+       - id: booking-service-v1
+         uri: http://booking-service-v1:9091
+         predicates:
+           - Path=/api/v1/bookings/**
+           - Weight=booking-group, 40
+         # Booking Service V2 Routes (60% traffic)
+       - id: booking-service-v2
+         uri: http://booking-service-v2:9092
+         predicates:
+           - Path=/api/v2/bookings/**
+           - Weight=booking-group, 60
+         # User Service Routes
+       - id: user-service
+         uri: http://user-service:9092
+         predicates:
+           - Path=/api/v1/users/**
+         # Notification Service Routes
+       - id: notification-service
+         uri: http://notification-service:9093
+         predicates:
+           - Path=/api/v1/notifications/**
+         # Payment Service Routes
+       - id: payment-service
+         uri: http://payment-service:9094
+         predicates:
+           - Path=/api/v1/payments/**
+           -
+    default-filters:
+      - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
+    globalcors:
+      corsConfigurations:
+        '[/**]':
+          allowedOrigins: "*"
+          allowedMethods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          allowedHeaders: "*"
+
+server:
+  port: 9020
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+
+
+

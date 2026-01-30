@@ -1,0 +1,61 @@
+apiVersion: apps/v1 #Specifies which version of the Kubernetes API we're using.
+kind: Deployment # Tells Kubernetes what type of resource we're creating. A Deployment manages pods and ensures the desired number of replicas are running.
+metadata:
+  name: # api-gateway The name of this deployment. You'll use this name to reference it in kubectl commands like kubectl get deployment api-gateway
+  labels:
+    app: api-gateway # Labels are key-value pairs used to organize and select resources. Here we're labeling this deployment with app: api-gateway
+spec: # The specification section - defines what we want this deployment to do.
+  replicas: 2 #How many identical pods (instances) of your application to run
+  selector:
+    matchLabels:
+      app: api-gateway #Tells the Deployment which pods it should manage. It will manage all pods with the label app: api-gateway. This must match the labels in the template below.
+  template: # The template for creating pods. Everything under this defines what each pod will look like.
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers: # List of containers to run in this pod. Usually just one container per pod.
+        - name: api-gateway # Name of the container inside the pod.
+          image: api-gateway:latest # Which Docker image to use. Kubernetes will pull this from your container registry (or use local if available).
+          imagePullPolicy: IfNotPresent # When to pull the image from registry: IfNotPresent: Only pull if image doesn't exist locally (good for development) / Always: Always pull the latest version (good for production)
+          ports:
+            - containerPort: # 9020  Which port your application listens on inside the container. Your Spring Boot app runs on port 9020, so we expose that port.
+          env: # Environment variables passed to your container. Here we're setting SPRING_PROFILES_ACTIVE=prod so Spring Boot uses the production profile.
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+          resources: # Resource limits and requests for CPU and memory. Kubernetes uses this to decide which node to place the pod on
+            requests: # Minimum resources guaranteed to this container
+              memory: "512Mi" # Guaranteed 512 megabytes of RAM
+              cpu: "250m" # Guaranteed 250 millicores (0.25 of a CPU core)
+            limits: # Maximum resources this container can use
+              memory: "1Gi" # Can use up to 1 gigabyte of RAM (if it tries to use more, it gets killed)
+              cpu: "500m" # Can use up to 500 millicores (0.5 CPU core - if it tries to use more, it gets throttled)
+          livenessProbe: # Health check to determine if the container is alive. If this check fails multiple times, Kubernetes will restart the container.
+            httpGet:
+              path: /actuator/health/liveness
+              port: 9020
+            initialDelaySeconds: 60 # Wait 60 seconds after container starts before doing the first health check. This gives your Spring Boot app time to start up.
+            periodSeconds: 10 # Run the health check every 10 seconds.
+          readinessProbe: # Health check to determine if the container is ready to receive traffic. If this fails, Kubernetes removes the pod from the Service load balancer (no traffic is sent to it).
+            httpGet: # Similar to liveness probe but checks if app is ready to serve requests. Your Spring Boot app might be alive but not ready (still initializing).
+              path: /actuator/health/readiness
+              port: 9020
+            initialDelaySeconds: # 30 Wait 30 seconds before first readiness check (shorter than liveness since we just need to know when it's ready, not fully healthy).
+            periodSeconds: 5 # Check readiness every 5 seconds.
+
+--- #  YAML document separator. Everything after this is a separate Kubernetes resource.
+apiVersion: v1
+kind: Service # Now we're creating a Service resource. A Service provides a stable network endpoint to access your pods.
+metadata: # Name and labels for the Service. This name becomes a DNS entry in the cluster.
+  name: api-gateway
+  labels:
+    app: api-gateway
+spec: # LoadBalancer: Exposes the service externally via a cloud load balancer (AWS ELB, GCP Load Balancer, etc.) / Other types: ClusterIP (internal only), NodePort (exposes on each node's IP)
+  type: LoadBalancer
+  selector:
+    app: api-gateway # The Service will route traffic to all pods with the label app: api-gateway. This is how the Service finds your Deployment's pods.
+  ports:
+    - name: http # Name for this port mapping (useful when you have multiple ports).
+      port: 9020 # The port the Service listens on. Other services/clients will connect to api-gateway:8080
+      targetPort: 9020 #  The port on the pod/container where traffic is forwarded. This should match the containerPort in the Deployment.
+      protocol: TCP # Network protocol to use. TCP is the default and most common.
