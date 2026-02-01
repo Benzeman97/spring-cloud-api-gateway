@@ -21,6 +21,12 @@ spring:
          uri: http://user-service:9092
          predicates:
            - Path=/api/v1/users/**
+        filters:
+              - name: RequestRateLimiter # Enables rate limiting filter
+                args:
+                  redis-rate-limiter.replenishRate: 10  # How many requests per second allowed
+                  redis-rate-limiter.burstCapacity: 20  # Maximum burst size (bucket size)
+                  key-resolver: "#{@ipKeyResolver}" 
          # Notification Service Routes
        - id: notification-service
          uri: http://notification-service:9093
