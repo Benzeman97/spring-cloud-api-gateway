@@ -25,7 +25,7 @@ spring:
               - name: RequestRateLimiter # Enables rate limiting filter
                 args:
                   redis-rate-limiter.replenishRate: 10  # Number of tokens added to the user’s bucket per second.
-                  redis-rate-limiter.burstCapacity: 20  # Maximum burst size (bucket size)
+                  redis-rate-limiter.burstCapacity: 20  # Maximum number of tokens the bucket can hold (allows short bursts)
                   key-resolver: "#{@ipKeyResolver}" 
          # Notification Service Routes
        - id: notification-service
