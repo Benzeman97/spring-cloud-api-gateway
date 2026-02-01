@@ -32,12 +32,18 @@ spring:
          uri: http://notification-service:9093
          predicates:
            - Path=/api/v1/notifications/**
+         filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 500   # tokens added per second
+                redis-rate-limiter.burstCapacity: 750   # max tokens (allows bursts)
+                key-resolver: "#{@globalKeyResolver}"
          # Payment Service Routes
        - id: payment-service
          uri: http://payment-service:9094
          predicates:
            - Path=/api/v1/payments/**
-           -
+    
     default-filters:
       - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
 
