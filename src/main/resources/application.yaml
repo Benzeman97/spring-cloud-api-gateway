@@ -71,6 +71,10 @@ management:
     health:
       show-details: always
 
+# Without Redis, each gateway instance would have its own in-memory bucket → users could exceed limits by hitting multiple instances
+# Redis provides centralized, distributed rate limiting
+# Yes, Redis stores the token bucket per key / Tracks tokens and last refill time / Enables distributed, global, or per-user rate limiting
 
-
-
+redis:
+  host: localhost
+  port: 6379
