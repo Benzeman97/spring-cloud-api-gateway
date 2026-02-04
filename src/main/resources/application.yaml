@@ -21,7 +21,7 @@ spring:
          uri: http://user-service:9092
          predicates:
            - Path=/api/v1/users/**
-        filters:
+         filters:
               - name: RequestRateLimiter # Enables rate limiting filter
                 args:
                   redis-rate-limiter.replenishRate: 10  # Number of tokens added to the user’s bucket per second.
