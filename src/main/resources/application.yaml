@@ -26,7 +26,11 @@ spring:
                 args:
                   redis-rate-limiter.replenishRate: 10  # Number of tokens added to the user’s bucket per second.
                   redis-rate-limiter.burstCapacity: 20  # Maximum number of tokens the bucket can hold (allows short bursts)
-                  key-resolver: "#{@ipKeyResolver}" 
+                  key-resolver: "#{@ipKeyResolver}"
+              - name: CircuitBreaker
+                args:
+                  name: userCircuitBreaker
+                  fallbackUri: forward:/fallback/user
          # Notification Service Routes
        - id: notification-service
          uri: http://notification-service:9093
@@ -43,7 +47,12 @@ spring:
          uri: http://payment-service:9094
          predicates:
            - Path=/api/v1/payments/**, /api/v1/refunds/**
-    
+         filters:
+           - name: CircuitBreaker
+             args:
+               name: paymentCircuitBreaker
+               fallbackUri: forward:/fallback/payment
+
     default-filters:
       - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
 
@@ -77,3 +86,34 @@ management:
 redis:
   host: localhost
   port: 6379
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentCircuitBreaker:    # ← ONE for each service route
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+      orderCircuitBreaker:      # ← ONE for each service route
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+  timelimiter:
+    instances:
+      paymentCircuitBreaker:
+        timeoutDuration: 5s  # Maximum allowed time for the entire payment service call (connect + processing + response).
+                             # If exceeded, fallback is triggered. Protects gateway threads from slow services.
+      orderCircuitBreaker:
+        timeoutDuration: 5s
+
+# NO RETRY NEEDED!
+  # Gateway retries = 3x load on backend (if backend is already struggling)
+  # User waits longer (3 attempts × 2s = 6 seconds)
+  # Better to fail fast and use circuit breaker
+  # Retry should be in the backend service, not Gateway
