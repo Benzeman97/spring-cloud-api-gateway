@@ -42,7 +42,7 @@ spring:
        - id: payment-service
          uri: http://payment-service:9094
          predicates:
-           - Path=/api/v1/payments/**
+           - Path=/api/v1/payments/**, /api/v1/refunds/**
     
     default-filters:
       - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
